@@ -35,6 +35,22 @@
 		A92924EC1C9315C500CA0810 /* ClientSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A51C93138800CA0810 /* ClientSocketType.swift */; };
 		A92924ED1C9315ED00CA0810 /* ClientSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A51C93138800CA0810 /* ClientSocketType.swift */; };
 		A92924EE1C9315ED00CA0810 /* ServerSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924AA1C93138800CA0810 /* ServerSocketType.swift */; };
+		A92924F71C933B6000CA0810 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924F61C933B6000CA0810 /* main.swift */; };
+		A92924FB1C933B9600CA0810 /* String+UnsafeBufferPointer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A11C93138800CA0810 /* String+UnsafeBufferPointer.swift */; };
+		A92924FC1C933B9600CA0810 /* AddressInfoSequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A31C93138800CA0810 /* AddressInfoSequence.swift */; };
+		A92924FD1C933B9600CA0810 /* AddressSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A41C93138800CA0810 /* AddressSocketType.swift */; };
+		A92924FE1C933B9600CA0810 /* ClientSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A51C93138800CA0810 /* ClientSocketType.swift */; };
+		A92924FF1C933B9600CA0810 /* ConnectedClientSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A61C93138800CA0810 /* ConnectedClientSocketType.swift */; };
+		A92925001C933B9600CA0810 /* ReceiveSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A71C93138800CA0810 /* ReceiveSocketType.swift */; };
+		A92925011C933B9600CA0810 /* SendReceiveSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A81C93138800CA0810 /* SendReceiveSocketType.swift */; };
+		A92925021C933B9600CA0810 /* SendSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924A91C93138800CA0810 /* SendSocketType.swift */; };
+		A92925031C933B9600CA0810 /* ServerSocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924AA1C93138800CA0810 /* ServerSocketType.swift */; };
+		A92925041C933B9600CA0810 /* Socket.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924AB1C93138800CA0810 /* Socket.swift */; };
+		A92925051C933B9600CA0810 /* SocketAddress.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924AC1C93138800CA0810 /* SocketAddress.swift */; };
+		A92925061C933B9600CA0810 /* SocketDispatchSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924AD1C93138800CA0810 /* SocketDispatchSource.swift */; };
+		A92925071C933B9600CA0810 /* SocketType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92924AE1C93138800CA0810 /* SocketType.swift */; };
+		A92925091C933C3500CA0810 /* ChatServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92925081C933C3500CA0810 /* ChatServer.swift */; };
+		A929250B1C933C4700CA0810 /* ConnectedChatClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A929250A1C933C4700CA0810 /* ConnectedChatClient.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -48,6 +64,15 @@
 			runOnlyForDeploymentPostprocessing = 1;
 		};
 		A92924C91C9313A500CA0810 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		A92924F21C933B6000CA0810 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -77,6 +102,10 @@
 		A92924CB1C9313A500CA0810 /* client */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = client; sourceTree = BUILT_PRODUCTS_DIR; };
 		A92924CD1C9313A500CA0810 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A92924EF1C93160B00CA0810 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
+		A92924F41C933B6000CA0810 /* ChatServer */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ChatServer; sourceTree = BUILT_PRODUCTS_DIR; };
+		A92924F61C933B6000CA0810 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		A92925081C933C3500CA0810 /* ChatServer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatServer.swift; sourceTree = "<group>"; };
+		A929250A1C933C4700CA0810 /* ConnectedChatClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConnectedChatClient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +123,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A92924F11C933B6000CA0810 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -105,6 +141,7 @@
 				A92924A21C93138800CA0810 /* SocketWrapper */,
 				A92924C11C9313A100CA0810 /* server */,
 				A92924CC1C9313A500CA0810 /* client */,
+				A92924F51C933B6000CA0810 /* ChatServer */,
 				A92924971C93131800CA0810 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -114,6 +151,7 @@
 			children = (
 				A92924C01C9313A100CA0810 /* server */,
 				A92924CB1C9313A500CA0810 /* client */,
+				A92924F41C933B6000CA0810 /* ChatServer */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -163,6 +201,16 @@
 			path = client;
 			sourceTree = "<group>";
 		};
+		A92924F51C933B6000CA0810 /* ChatServer */ = {
+			isa = PBXGroup;
+			children = (
+				A92925081C933C3500CA0810 /* ChatServer.swift */,
+				A929250A1C933C4700CA0810 /* ConnectedChatClient.swift */,
+				A92924F61C933B6000CA0810 /* main.swift */,
+			);
+			path = ChatServer;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -200,6 +248,23 @@
 			productReference = A92924CB1C9313A500CA0810 /* client */;
 			productType = "com.apple.product-type.tool";
 		};
+		A92924F31C933B6000CA0810 /* ChatServer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A92924F81C933B6000CA0810 /* Build configuration list for PBXNativeTarget "ChatServer" */;
+			buildPhases = (
+				A92924F01C933B6000CA0810 /* Sources */,
+				A92924F11C933B6000CA0810 /* Frameworks */,
+				A92924F21C933B6000CA0810 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ChatServer;
+			productName = ChatServer;
+			productReference = A92924F41C933B6000CA0810 /* ChatServer */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -214,6 +279,9 @@
 						CreatedOnToolsVersion = 7.3;
 					};
 					A92924CA1C9313A500CA0810 = {
+						CreatedOnToolsVersion = 7.3;
+					};
+					A92924F31C933B6000CA0810 = {
 						CreatedOnToolsVersion = 7.3;
 					};
 				};
@@ -232,6 +300,7 @@
 			targets = (
 				A92924BF1C9313A100CA0810 /* server */,
 				A92924CA1C9313A500CA0810 /* client */,
+				A92924F31C933B6000CA0810 /* ChatServer */,
 			);
 		};
 /* End PBXProject section */
@@ -276,6 +345,29 @@
 				A92924D91C9314AC00CA0810 /* SendSocketType.swift in Sources */,
 				A92924D81C9314AC00CA0810 /* SendReceiveSocketType.swift in Sources */,
 				A92924D71C9314AC00CA0810 /* ReceiveSocketType.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A92924F01C933B6000CA0810 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A92924FC1C933B9600CA0810 /* AddressInfoSequence.swift in Sources */,
+				A92924FE1C933B9600CA0810 /* ClientSocketType.swift in Sources */,
+				A92924FB1C933B9600CA0810 /* String+UnsafeBufferPointer.swift in Sources */,
+				A92924F71C933B6000CA0810 /* main.swift in Sources */,
+				A92925071C933B9600CA0810 /* SocketType.swift in Sources */,
+				A92924FD1C933B9600CA0810 /* AddressSocketType.swift in Sources */,
+				A92925051C933B9600CA0810 /* SocketAddress.swift in Sources */,
+				A92925031C933B9600CA0810 /* ServerSocketType.swift in Sources */,
+				A92925041C933B9600CA0810 /* Socket.swift in Sources */,
+				A92925091C933C3500CA0810 /* ChatServer.swift in Sources */,
+				A929250B1C933C4700CA0810 /* ConnectedChatClient.swift in Sources */,
+				A92924FF1C933B9600CA0810 /* ConnectedClientSocketType.swift in Sources */,
+				A92925061C933B9600CA0810 /* SocketDispatchSource.swift in Sources */,
+				A92925021C933B9600CA0810 /* SendSocketType.swift in Sources */,
+				A92925011C933B9600CA0810 /* SendReceiveSocketType.swift in Sources */,
+				A92925001C933B9600CA0810 /* ReceiveSocketType.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -392,6 +484,20 @@
 			};
 			name = Release;
 		};
+		A92924F91C933B6000CA0810 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		A92924FA1C933B6000CA0810 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -417,6 +523,14 @@
 			buildConfigurations = (
 				A92924D01C9313A500CA0810 /* Debug */,
 				A92924D11C9313A500CA0810 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+		A92924F81C933B6000CA0810 /* Build configuration list for PBXNativeTarget "ChatServer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A92924F91C933B6000CA0810 /* Debug */,
+				A92924FA1C933B6000CA0810 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 		};
