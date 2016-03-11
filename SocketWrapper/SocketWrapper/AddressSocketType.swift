@@ -17,7 +17,7 @@ protocol AddressSocketType: SocketType {
     var address: SocketAddress { get }
 
     /// Creates an instance with the given `socket` and `address`.
-    init(socket: Socket, address: SocketAddress)
+    init(socket: Socket, address: SocketAddress) throws
 
 }
 
@@ -28,7 +28,7 @@ extension AddressSocketType {
     init(addrInfo: addrinfo) throws {
         let socket = try Socket(addrInfo: addrInfo)
         let address = SocketAddress(addrInfo: addrInfo)
-        self.init(socket: socket, address: address)
+        try self.init(socket: socket, address: address)
     }
 
 }
