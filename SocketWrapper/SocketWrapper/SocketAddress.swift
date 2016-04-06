@@ -41,21 +41,21 @@ enum SocketAddress {
     /// - Parameter addressProvider: A closure that will be called and is expected to fill in an address into the given buffer.
     init(@noescape addressProvider: (UnsafeMutablePointer<sockaddr>, UnsafeMutablePointer<socklen_t>) throws -> Void) throws {
 
-        // Use the largest socket address struct here:
-        var address = sockaddr_in6()
-        var length = SocketAddress.lengthOfVersion6
-        try withUnsafeMutablePointers(&address, &length) {
+        // `sockaddr_storage` is an abstract type that provides storage large enough for any concrete socket address struct:
+        var addressStorage = sockaddr_storage()
+        var addressStorageLength = socklen_t(sizeofValue(addressStorage))
+        try withUnsafeMutablePointers(&addressStorage, &addressStorageLength) {
             try addressProvider(UnsafeMutablePointer<sockaddr>($0), $1)
         }
 
-        switch Int32(address.sin6_family) {
+        switch Int32(addressStorage.ss_family) {
         case AF_INET:
-            assert(socklen_t(address.sin6_len) == SocketAddress.lengthOfVersion4)
-            self = withUnsafePointer(&address) { .Version4(address: UnsafePointer<sockaddr_in>($0).memory) }
+            assert(socklen_t(addressStorage.ss_len) == SocketAddress.lengthOfVersion4)
+            self = withUnsafePointer(&addressStorage) { .Version4(address: UnsafePointer<sockaddr_in>($0).memory) }
 
         case AF_INET6:
-            assert(socklen_t(address.sin6_len) == SocketAddress.lengthOfVersion6)
-            self = .Version6(address: address)
+            assert(socklen_t(addressStorage.ss_len) == SocketAddress.lengthOfVersion6)
+            self = withUnsafePointer(&addressStorage) { .Version6(address: UnsafePointer<sockaddr_in6>($0).memory) }
 
         default:
             throw Socket.Error.NoAddressAvailable
