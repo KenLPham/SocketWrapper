@@ -212,16 +212,18 @@ extension Socket {
     /// - SeeAlso: `accept(2)`
     func accept(blocking blocking: Bool = false) throws -> (Socket, SocketAddress) {
         self[fileOption: O_NONBLOCK] = !blocking
-        let (clientFileDescriptor, socketAddress) = SocketAddress.create { sockaddr, length in
-            Darwin.accept(fileDescriptor, sockaddr, length)
-        }
-        guard clientFileDescriptor != -1 else {
-            switch errno {
-            case EAGAIN:
-                throw Error.NoDataAvailable
 
-            case let error:
-                throw Error.AcceptFailed(code: error)
+        var clientFileDescriptor: Int32 = 0
+        let socketAddress = try SocketAddress() { sockaddr, length in
+            clientFileDescriptor = Darwin.accept(fileDescriptor, sockaddr, length)
+            guard clientFileDescriptor != -1 else {
+                switch errno {
+                case EAGAIN:
+                    throw Error.NoDataAvailable
+
+                case let error:
+                    throw Error.AcceptFailed(code: error)
+                }
             }
         }
         return (Socket(fileDescriptor: clientFileDescriptor), socketAddress)

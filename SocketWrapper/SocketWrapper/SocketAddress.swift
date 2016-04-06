@@ -30,42 +30,36 @@ enum SocketAddress {
         return socklen_t(sizeof(sockaddr_in6))
     }
 
-    /// Allows creating either a `Version4` or `Version6` socket address, depending on what `addressProvider` does.
+    /// Creates either a `Version4` or `Version6` socket address, depending on what `addressProvider` does.
     ///
-    /// This method calls the given `addressProvider` with an `UnsafeMutablePointer<sockaddr>` that points to a buffer
-    /// that can hold either a `sockaddr_in` or a `sockaddr_in6`. After `addressProvider` returns, the pointer is 
-    /// expected to contain an address. For that address, a `SocketAddress` is then returned, along with the result 
-    /// of `addressProvider`.
+    /// This initializer calls the given `addressProvider` with an `UnsafeMutablePointer<sockaddr>` that points to a buffer
+    /// that can hold either a `sockaddr_in` or a `sockaddr_in6`. After `addressProvider` returns, the pointer is
+    /// expected to contain an address. For that address, a `SocketAddress` is then created.
     ///
-    /// This method is intended to be used with `Darwin.accept()`.
+    /// This initializer is intended to be used with `Darwin.accept()`.
     ///
     /// - Parameter addressProvider: A closure that will be called and is expected to fill in an address into the given buffer.
-    ///
-    /// - Returns: The result returned by `addressProvider` and the newly created `SocketAddress`.
-    static func create<R>(@noescape addressProvider: (UnsafeMutablePointer<sockaddr>, UnsafeMutablePointer<socklen_t>) throws -> R) rethrows -> (result: R, socketAddress: SocketAddress) {
+    init(@noescape addressProvider: (UnsafeMutablePointer<sockaddr>, UnsafeMutablePointer<socklen_t>) throws -> Void) throws {
 
         // Use the largest socket address struct here:
         var address = sockaddr_in6()
         var length = SocketAddress.lengthOfVersion6
-        let result = try withUnsafeMutablePointers(&address, &length) {
+        try withUnsafeMutablePointers(&address, &length) {
             try addressProvider(UnsafeMutablePointer<sockaddr>($0), $1)
         }
 
-        let socketAddress: SocketAddress
         switch Int32(address.sin6_family) {
         case AF_INET:
             assert(socklen_t(address.sin6_len) == SocketAddress.lengthOfVersion4)
-            socketAddress = withUnsafePointer(&address) { .Version4(address: UnsafePointer<sockaddr_in>($0).memory) }
+            self = withUnsafePointer(&address) { .Version4(address: UnsafePointer<sockaddr_in>($0).memory) }
 
         case AF_INET6:
             assert(socklen_t(address.sin6_len) == SocketAddress.lengthOfVersion6)
-            socketAddress = .Version6(address: address)
+            self = .Version6(address: address)
 
         default:
-            fatalError("Unknown address family")
+            throw Socket.Error.NoAddressAvailable
         }
-
-        return (result, socketAddress)
     }
 
     /// Creates an instance by inspecting the given `addrinfo`'s protocol family and socket address.
