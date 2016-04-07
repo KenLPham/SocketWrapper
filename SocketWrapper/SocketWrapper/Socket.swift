@@ -14,6 +14,31 @@ import Darwin
 /// instead of returning `-1` and setting the global `errno`.
 struct Socket {
 
+    typealias Byte = UInt8
+
+    /// The underlying file descriptor.
+    let fileDescriptor: Int32
+
+    /// Initializer for when a file descriptor exists already.
+    init(fileDescriptor: Int32) {
+        self.fileDescriptor = fileDescriptor
+    }
+
+    /// Initializer for creating a new file descriptor using `Darwin.socket()` using the `addrinfo`.
+    init(addrInfo: addrinfo) throws {
+        let fileDescriptor = Darwin.socket(addrInfo.ai_family, addrInfo.ai_socktype, addrInfo.ai_protocol)
+        guard fileDescriptor != -1 else {
+            throw Error.CreateFailed(code: errno)
+        }
+        self.init(fileDescriptor: fileDescriptor)
+    }
+
+}
+
+
+/// Socket errors.
+extension Socket {
+
     /// Most of these errors are thrown whenever a low level socket function returns `-1`.
     /// Their associated error code then provides detailed information on the error.
     enum Error: ErrorType, CustomStringConvertible {
@@ -85,25 +110,6 @@ struct Socket {
                 return "recv() failed: " + errorString(code)
             }
         }
-    }
-
-    typealias Byte = UInt8
-
-    /// The underlying file descriptor.
-    let fileDescriptor: Int32
-
-    /// Initializer for when a file descriptor exists already.
-    init(fileDescriptor: Int32) {
-        self.fileDescriptor = fileDescriptor
-    }
-
-    /// Initializer for creating a new file descriptor using `Darwin.socket()` using the `addrinfo`.
-    init(addrInfo: addrinfo) throws {
-        let fileDescriptor = Darwin.socket(addrInfo.ai_family, addrInfo.ai_socktype, addrInfo.ai_protocol)
-        guard fileDescriptor != -1 else {
-            throw Error.CreateFailed(code: errno)
-        }
-        self.init(fileDescriptor: fileDescriptor)
     }
 
 }
