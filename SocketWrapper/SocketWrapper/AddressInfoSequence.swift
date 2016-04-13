@@ -127,8 +127,9 @@ extension AddressInfoSequence: SequenceType {
             guard cursor != nil else {
                 return nil
             }
-            let addrInfo = cursor.memory
+            var addrInfo = cursor.memory
             cursor = addrInfo.ai_next
+            addrInfo.ai_next = nil // Prevent access to the next element of the linked list.
             return addrInfo
         }
     }
