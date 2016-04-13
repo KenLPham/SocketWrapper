@@ -9,6 +9,9 @@
 import Darwin
 
 /// A wrapper around a `addrinfo` linked list.
+///
+/// - Important: When iterating over an `AddressInfoSequence` using its `SequenceType` conformance, the `addrinfo`
+///   struct's internal pointers are only valid as long as the `GeneratorType` returned by `generate` is alive.
 struct AddressInfoSequence {
 
     /// An internal storage that is used by `AddressInfoSequence` and its `SequenceType` implementation.
