@@ -118,15 +118,18 @@ struct AddressInfoSequence {
 
 extension AddressInfoSequence: SequenceType {
 
-    func generate() -> AnyGenerator<addrinfo> {
-        let storage = _addrInfoStorage
-        var cursor = storage._addrInfoPointer
-        return AnyGenerator {
-            // Keep a reference to the storage to make sure it is kept alive as long as the generator
-            // lives. The `withExtendedLifetime()` call isn't actually necessary, but it makes clearer
-            // why `storage` is referenced here.
-            withExtendedLifetime(storage) {}
+    struct AddressInfoGenerator: GeneratorType {
 
+        private let _storage: Storage
+        private var _cursor: UnsafeMutablePointer<addrinfo>
+
+        private init(storage: Storage) {
+            _storage = storage
+            _cursor = storage._addrInfoPointer
+        }
+
+        func next() -> addrinfo? {
+            var cursor = _storage._addrInfoPointer
             guard cursor != nil else {
                 return nil
             }
@@ -135,6 +138,11 @@ extension AddressInfoSequence: SequenceType {
             addrInfo.ai_next = nil // Prevent access to the next element of the linked list.
             return addrInfo
         }
+
+    }
+
+    func generate() -> AddressInfoGenerator {
+        return AddressInfoGenerator(storage: _addrInfoStorage)
     }
 
 }
