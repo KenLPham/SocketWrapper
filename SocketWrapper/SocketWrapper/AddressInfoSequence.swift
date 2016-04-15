@@ -118,35 +118,34 @@ struct AddressInfoSequence {
 
 extension AddressInfoSequence: SequenceType {
 
-    struct AddressInfoGenerator: GeneratorType {
-
-        private let _storage: Storage
-        private var _cursor: UnsafeMutablePointer<addrinfo>
-
-        private init(storage: Storage) {
-            _storage = storage
-            _cursor = storage._addrInfoPointer
-        }
-
-        func next() -> addrinfo? {
-            var cursor = _storage._addrInfoPointer
-            guard cursor != nil else {
-                return nil
-            }
-            var addrInfo = cursor.memory
-            cursor = addrInfo.ai_next
-            addrInfo.ai_next = nil // Prevent access to the next element of the linked list.
-            return addrInfo
-        }
-
-    }
-
     func generate() -> AddressInfoGenerator {
         return AddressInfoGenerator(storage: _addrInfoStorage)
     }
 
 }
 
+struct AddressInfoGenerator: GeneratorType {
+
+    private let _storage: AddressInfoSequence.Storage
+    private var _cursor: UnsafeMutablePointer<addrinfo>
+
+    private init(storage: AddressInfoSequence.Storage) {
+        _storage = storage
+        _cursor = storage._addrInfoPointer
+    }
+
+    func next() -> addrinfo? {
+        var cursor = _storage._addrInfoPointer
+        guard cursor != nil else {
+            return nil
+        }
+        var addrInfo = cursor.memory
+        cursor = addrInfo.ai_next
+        addrInfo.ai_next = nil // Prevent access to the next element of the linked list.
+        return addrInfo
+    }
+
+}
 
 extension AddressInfoSequence {
 
