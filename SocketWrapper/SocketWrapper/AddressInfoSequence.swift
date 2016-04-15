@@ -134,13 +134,12 @@ struct AddressInfoGenerator: GeneratorType {
         _cursor = storage._addrInfoPointer
     }
 
-    func next() -> addrinfo? {
-        var cursor = _storage._addrInfoPointer
-        guard cursor != nil else {
+    mutating func next() -> addrinfo? {
+        guard _cursor != nil else {
             return nil
         }
-        var addrInfo = cursor.memory
-        cursor = addrInfo.ai_next
+        var addrInfo = _cursor.memory
+        _cursor = addrInfo.ai_next
         addrInfo.ai_next = nil // Prevent access to the next element of the linked list.
         return addrInfo
     }
