@@ -91,17 +91,21 @@ enum SocketAddress {
     }
 
     /// Makes a copy of `address` and calls the given closure with an `UnsafePointer<sockaddr>` to that.
-    func withSockAddrPointer<Result>(@noescape f: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
-        switch self {
-        case .Version4(var address):
-            return try withUnsafePointer(&address) {
-                try f(UnsafePointer<sockaddr>($0), SocketAddress.lengthOfVersion4)
-            }
+    func withSockAddrPointer<Result>(@noescape body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
 
-        case .Version6(var address):
-            return try withUnsafePointer(&address) {
-                try f(UnsafePointer<sockaddr>($0), SocketAddress.lengthOfVersion6)
+        func castAndCall<T>(address: T, @noescape _ body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
+            var localAddress = address // We need a `var` here for the `&`.
+            return try withUnsafePointer(&localAddress) {
+                try body(UnsafePointer<sockaddr>($0), socklen_t(sizeof(T)))
             }
+        }
+
+        switch self {
+        case .Version4(let address):
+            return try castAndCall(address, body)
+
+        case .Version6(let address):
+            return try castAndCall(address, body)
         }
     }
 
