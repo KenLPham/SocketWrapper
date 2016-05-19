@@ -10,8 +10,8 @@ import Darwin
 
 /// A wrapper around the `sockaddr`, `sockaddr_in`, and `sockaddr_in6` family of structs.
 ///
-/// It provides storage for the largest of them (`sockaddr_in6`) and implements methods 
-/// that allow using that storage as a pointer to a "generic" `sockaddr` struct.
+/// It provides storage for any socket address and implements methods that allow using that
+/// storage as a pointer to a "generic" `sockaddr` struct.
 enum SocketAddress {
 
     /// An IPv4 address represented by a `sockaddr_in`.
