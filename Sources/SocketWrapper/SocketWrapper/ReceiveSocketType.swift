@@ -13,11 +13,11 @@ protocol ReceiveSocketType: SocketType {
 
     /// Called right before `receive()` will be called on the socket.
     /// This is an override point for implementers. The default implementation does nothing.
-    func willReceive()
+    func willReceive ()
 
     /// Called after `receive()` was called on the socket.
     /// This is an override point for implementers. The default implementation does nothing.
-    func didReceive(buffer: UnsafeMutableBufferPointer<Socket.Byte>, bytesReceived: Int)
+    func didReceive (buffer: UnsafeMutableBufferPointer<Socket.Byte>, bytesReceived: Int)
 
 }
 
@@ -28,18 +28,18 @@ extension ReceiveSocketType {
     /// Receives data until `Socket.receive()` returns because no more data is available, or because `buffer` is full.
     ///
     /// - SeeAlso: `Socket.receive(_, flags:, blocking:)`
-    func receive(buffer: UnsafeMutableBufferPointer<Socket.Byte>, blocking: Bool = false) throws -> Int {
+    func receive (buffer: UnsafeMutableBufferPointer<Socket.Byte>, blocking: Bool = false) throws -> Int {
         willReceive()
         let result = try socket.receive(buffer, blocking: blocking)
-        didReceive(buffer, bytesReceived: result)
+		didReceive(buffer: buffer, bytesReceived: result)
         return result
     }
 
-    func willReceive() {
+    func willReceive () {
         // Empty default implementation
     }
 
-    func didReceive(buffer: UnsafeMutableBufferPointer<Socket.Byte>, bytesReceived: Int) {
+    func didReceive (buffer: UnsafeMutableBufferPointer<Socket.Byte>, bytesReceived: Int) {
         // Empty default implementation
     }
 
@@ -69,13 +69,12 @@ extension ReceiveSocketType {
     /// actual bytes received, not `maxBytes`.
     ///
     /// - SeeAlso: `receive(_:, blocking:)`
-    func receive(maxBytes maxBytes: Int = 1024, blocking: Bool = false) throws -> [Socket.Byte] {
-        let pointer = UnsafeMutablePointer<Socket.Byte>.alloc(maxBytes)
+	func receive (maxBytes: Int = 1024, blocking: Bool = false) throws -> [Socket.Byte] {
+		let pointer = UnsafeMutablePointer<Socket.Byte>.allocate(capacity: maxBytes)
         let buffer = UnsafeMutableBufferPointer(start: pointer, count: maxBytes)
-        let bytesReceived = try receive(buffer, blocking: blocking)
+		let bytesReceived = try receive(buffer: buffer, blocking: blocking)
         let result = Array(buffer[0..<bytesReceived])
-        pointer.destroy(maxBytes)
-        pointer.dealloc(maxBytes)
+		pointer.deallocate()
         return result
     }
 
@@ -84,7 +83,7 @@ extension ReceiveSocketType {
     /// - Returns: The `String` received or `nil` if the data is not valid UTF8.
     ///
     /// - SeeAlso: `receive(maxBytes:, blocking:)`
-    func receiveUTF8String(maxBytes maxBytes: Int = 1024, blocking: Bool = false) throws -> String? {
+    func receiveUTF8String (maxBytes: Int = 1024, blocking: Bool = false) throws -> String? {
         let buffer = try receive(maxBytes: maxBytes, blocking: blocking)
         let string = String(UTF8CodeUnits: buffer)
         return string
@@ -101,25 +100,25 @@ extension ReceiveSocketType {
     /// was found in the received data. The callback's return value determines whether to continue receiving or not.
     ///
     /// - SeeAlso: `receive(_:, blocking:)`
-    func receive<T: CollectionType where T.Generator.Element == Socket.Byte, T.Index == Int>(terminator terminator: T, blocking: Bool = false, @noescape messageHandler: ArraySlice<Socket.Byte> throws -> ReceiveSocketMessageHandlerResponse) throws {
+	func receive<T: Collection> (terminator: T, blocking: Bool = false, messageHandler: (ArraySlice<Socket.Byte>) throws -> ReceiveSocketMessageHandlerResponse) throws where T.Iterator.Element == Socket.Byte, T.Index == Int {
         let terminatorCount = terminator.count
         var receivedBytes = Array<Socket.Byte>()
         var terminatorEndIndex = 0
 
         let bufferCount = 1024
-        let pointer = UnsafeMutablePointer<Socket.Byte>.alloc(bufferCount)
+		let pointer = UnsafeMutablePointer<Socket.Byte>.allocate(capacity: bufferCount)
         let buffer = UnsafeMutableBufferPointer(start: pointer, count: bufferCount)
         // pointer.initializeFrom([Socket.Byte](count: bufferCount, repeatedValue: 0))
 
         receiveLoop: while true {
-            let bytesReceived = try receive(buffer, blocking: blocking)
+			let bytesReceived = try receive(buffer: buffer, blocking: blocking)
 
             let firstSearchRangeStartIndex = max(0, receivedBytes.count - terminatorCount)
-            receivedBytes.appendContentsOf(buffer[0..<bytesReceived])
+			receivedBytes.append(contentsOf: buffer[0..<bytesReceived])
             let lastSearchRangeStartIndex = max(0, receivedBytes.count - terminatorCount)
 
             for i in firstSearchRangeStartIndex...lastSearchRangeStartIndex {
-                if receivedBytes.suffixFrom(i).startsWith(terminator) {
+                if receivedBytes.suffix(from: i).starts(with: terminator) {
                     terminatorEndIndex = i + terminatorCount - 1
                     let message = receivedBytes[0...terminatorEndIndex]
 
@@ -136,7 +135,8 @@ extension ReceiveSocketType {
         }
 
         // pointer.destroy(bufferCount)
-        pointer.dealloc(bufferCount)
+//        pointer.dealloc(bufferCount)
+		pointer.deallocate()
     }
 
     /// Receives a UTF-8 string of arbitrary length that is terminated by the `terminator` string.
@@ -145,14 +145,12 @@ extension ReceiveSocketType {
     /// - Parameter appendNulToTerminator: If `true`, a `NUL`-terminated `terminator` String is expected to be sent by the peer.
     ///
     /// - SeeAlso: `receive(terminator:, blocking:, messageHandler:)`
-    func receiveUTF8String(terminator terminator: String = "\n", appendNulToTerminator: Bool = false, blocking: Bool = false, @noescape messageHandler: String throws -> ReceiveSocketMessageHandlerResponse) throws {
+	func receiveUTF8String (terminator: String = "\n", appendNulToTerminator: Bool = false, blocking: Bool = false, messageHandler: (String) throws -> ReceiveSocketMessageHandlerResponse) throws {
         return try terminator.withUTF8UnsafeBufferPointer(includeNulTerminator: false) { terminatorBuffer in
             try receive(terminator: terminatorBuffer, blocking: blocking) { messageBytes in
                 let message: String = try messageBytes.withUnsafeBufferPointer { buffer in
-                    guard let message = NSString(bytes: buffer.baseAddress, length: buffer.count, encoding: NSUTF8StringEncoding) else {
-                        throw Socket.Error.ReceivedInvalidData
-                    }
-                    return message as String
+					guard let msg = String(bytes: buffer, encoding: .utf8) else { throw Socket.POSIXError.ReceivedInvalidData }
+					return msg
                 }
                 return try messageHandler(message)
             }
@@ -175,8 +173,8 @@ extension ReceiveAsyncSocketType {
     /// This also happens automatically in the `SocketDispatchSource.deinit`.
     ///
     /// - Returns: A `SocketDispatchSource` that must be held on to by the caller for as long as callbacks are to be received.
-    func receiveAsync(queue queue: dispatch_queue_t = dispatch_get_global_queue(0, 0), readyToReceiveHandler: () -> Void) -> SocketDispatchSource {
-        return SocketDispatchSource(socket: socket, queue: queue, eventHandler: readyToReceiveHandler)
+	func receiveAsync (queue: DispatchQueue = .global(), readyToReceive handler: @escaping () -> Void) -> SocketDispatchSource {
+        return SocketDispatchSource(socket: socket, queue: queue, eventHandler: handler)
     }
     
 }

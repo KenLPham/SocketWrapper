@@ -22,14 +22,14 @@ enum SocketAddress {
 
     /// The length of a `sockaddr_in` as the appropriate type for low-level APIs.
     static var lengthOfVersion4: socklen_t {
-        return socklen_t(sizeof(sockaddr_in))
+        return socklen_t(MemoryLayout<sockaddr_in>.stride)
     }
 
     /// The length of a `sockaddr_in6` as the appropriate type for low-level APIs.
     static var lengthOfVersion6: socklen_t {
-        return socklen_t(sizeof(sockaddr_in6))
+        return socklen_t(MemoryLayout<sockaddr_in6>.stride)
     }
-
+	
     /// Creates either a `Version4` or `Version6` socket address, depending on what `addressProvider` does.
     ///
     /// This initializer calls the given `addressProvider` with an `UnsafeMutablePointer<sockaddr>` that points to a buffer
@@ -39,26 +39,31 @@ enum SocketAddress {
     /// This initializer is intended to be used with `Darwin.accept()`.
     ///
     /// - Parameter addressProvider: A closure that will be called and is expected to fill in an address into the given buffer.
-    init(@noescape addressProvider: (UnsafeMutablePointer<sockaddr>, UnsafeMutablePointer<socklen_t>) throws -> Void) throws {
+    init (addressProvider: (UnsafeMutablePointer<sockaddr>, UnsafeMutablePointer<socklen_t>) throws -> Void) throws {
 
         // `sockaddr_storage` is an abstract type that provides storage large enough for any concrete socket address struct:
         var addressStorage = sockaddr_storage()
-        var addressStorageLength = socklen_t(sizeofValue(addressStorage))
-        try withUnsafeMutablePointers(&addressStorage, &addressStorageLength) {
-            try addressProvider(UnsafeMutablePointer<sockaddr>($0), $1)
-        }
+		var addressStorageLength = socklen_t(MemoryLayout.size(ofValue: addressStorage))
+		try withUnsafeMutablePointer(to: &addressStorage) { (pointer) in
+			try withUnsafeMutablePointer(to: &addressStorageLength, { (length) in
+				try pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { try addressProvider($0, length) }
+			})
+		}
 
         switch Int32(addressStorage.ss_family) {
         case AF_INET:
             assert(socklen_t(addressStorage.ss_len) == SocketAddress.lengthOfVersion4)
-            self = withUnsafePointer(&addressStorage) { .Version4(address: UnsafePointer<sockaddr_in>($0).memory) }
-
+			self = withUnsafePointer(to: &addressStorage) { (pointer) -> SocketAddress in
+				let addr = pointer.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }
+				return .Version4(address: addr)
+			}
         case AF_INET6:
             assert(socklen_t(addressStorage.ss_len) == SocketAddress.lengthOfVersion6)
-            self = withUnsafePointer(&addressStorage) { .Version6(address: UnsafePointer<sockaddr_in6>($0).memory) }
-
-        default:
-            throw Socket.Error.NoAddressAvailable
+			self = withUnsafePointer(to: &addressStorage) { (pointer) -> SocketAddress in
+				let addr = pointer.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }
+				return .Version6(address: addr)
+			}
+        default: throw Socket.POSIXError.NoAddressAvailable
         }
     }
 
@@ -69,12 +74,10 @@ enum SocketAddress {
         switch addrInfo.ai_family {
         case AF_INET:
             assert(addrInfo.ai_addrlen == SocketAddress.lengthOfVersion4)
-            self = .Version4(address: UnsafePointer(addrInfo.ai_addr).memory)
-
+			self = .Version4(address: addrInfo.ai_addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1, { $0.pointee }))
         case AF_INET6:
             assert(addrInfo.ai_addrlen == SocketAddress.lengthOfVersion6)
-            self = .Version6(address: UnsafePointer(addrInfo.ai_addr).memory)
-
+			self = .Version6(address: addrInfo.ai_addr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1, { $0.pointee }))
         default:
             fatalError("Unknown address size")
         }
@@ -91,51 +94,39 @@ enum SocketAddress {
     }
 
     /// Makes a copy of `address` and calls the given closure with an `UnsafePointer<sockaddr>` to that.
-    func withSockAddrPointer<Result>(@noescape body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
+    func withSockAddrPointer<Result>(body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
 
-        func castAndCall<T>(address: T, @noescape _ body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
-            var localAddress = address // We need a `var` here for the `&`.
-            return try withUnsafePointer(&localAddress) {
-                try body(UnsafePointer<sockaddr>($0), socklen_t(sizeof(T)))
-            }
+        func castAndCall<T>(_ address: T, _ body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
+			return try withUnsafePointer(to: address) { (pointer) -> Result in
+				try pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+					return try body($0, socklen_t(MemoryLayout<T>.stride))
+				}
+			}
         }
 
         switch self {
-        case .Version4(let address):
+        case .Version4 (let address):
             return try castAndCall(address, body)
 
-        case .Version6(let address):
+        case .Version6 (let address):
             return try castAndCall(address, body)
         }
     }
 
     /// Returns the host and port as returned by `getnameinfo()`.
     func nameInfo() throws -> (host: String, port: String) {
-        var hostBuffer = [CChar](count:256, repeatedValue:0)
-        var portBuffer = [CChar](count:256, repeatedValue:0)
+        var hostBuffer = [CChar](repeating: 0, count: 256)
+        var portBuffer = [CChar](repeating: 0, count: 256)
 
-        let result = withSockAddrPointer { sockAddr, length in
-            Darwin.getnameinfo(sockAddr, length, &hostBuffer, socklen_t(hostBuffer.count), &portBuffer, socklen_t(portBuffer.count), 0)
-        }
-
-        guard result != -1 else {
-            throw Socket.Error.GetNameInfoFailed(code: errno)
-        }
-
-        guard let host = String(UTF8String: hostBuffer) else {
-            throw Socket.Error.GetNameInfoInvalidName
-        }
-
-        guard let port = String(UTF8String: portBuffer) else {
-            throw Socket.Error.GetNameInfoInvalidName
-        }
-
-        return (host, port)
+        let result = withSockAddrPointer { getnameinfo($0, $1, &hostBuffer, socklen_t(hostBuffer.count), &portBuffer, socklen_t(portBuffer.count), 0) }
+		
+        guard result != -1 else { throw Socket.POSIXError.GetNameInfoFailed(code: errno) }
+        return (String(cString: hostBuffer), String(cString: portBuffer))
     }
 
     #if false // Doesn't work yet.
     var displayName: String {
-        func createDisplayName(address address:UnsafePointer<Void> , family: Int32, maxLength: Int32) -> String {
+		func createDisplayName(address: UnsafePointer<Void>, family: Int32, maxLength: Int32) -> String {
             let pointer = UnsafeMutablePointer<CChar>.alloc(Int(maxLength))
             guard inet_ntop(family, address, pointer, socklen_t(maxLength)) != nil else {
                 fatalError("Error converting IP address to displayName")

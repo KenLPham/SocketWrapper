@@ -7,9 +7,7 @@
 //
 
 /// Represents a client socket that can `connect()` to a peer identified by a `host` and `port`.
-protocol ClientSocketType: AddressSocketType, SendReceiveSocketType {
-
-}
+protocol ClientSocketType: AddressSocketType, SendReceiveSocketType {}
 
 extension ClientSocketType {
 
@@ -24,14 +22,14 @@ extension ClientSocketType {
     ///   This may require a new initializer like `init(connectingToHost:port:)` that loops over the 
     ///   `AddressInfoSequence` and calls `connect()` on each `addrinfo` until one works, then uses that 
     ///   `addrinfo` to call `init(addrInfo:)`.
-    init(host: String, port: String) throws {
-        self = try AddressInfoSequence(forConnectingToHost: host, port: port).withFirstAddrInfo { addrInfo in
+    init (host: String?, port: String) throws {
+        self = try AddressInfoSequence(forConnectingTo: host, port: port).withFirstAddrInfo { addrInfo in
             try Self.init(addrInfo: addrInfo)
         }
     }
 
     /// Connects to `address`.
-    func connect() throws {
+    func connect () throws {
         // Note: It would be nice if this method returned a new `ConnectedClientSocketType` that does not allow
         // calling `connect()` a second time. `ClientSocketType` could then be a subtype of `AddressSocketType`
         // only (without `SendReceiveSocketType`), meaning that you'd first have to create a `ClientSocketType`
@@ -55,8 +53,6 @@ extension ClientSocketType {
 
 /// A minimal implementation of the `ClientSocketType`.
 struct ClientSocket: ClientSocketType {
-
     let socket: Socket
     let address: SocketAddress
-
 }

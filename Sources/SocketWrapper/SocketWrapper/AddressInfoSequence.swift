@@ -15,13 +15,13 @@ import Darwin
 struct AddressInfoSequence {
 
     /// An internal storage that is used by `AddressInfoSequence` and its `SequenceType` implementation.
-    private class Storage {
+	class Storage {
 
         /// The internal pointer to the head of the linked list.
         ///
         /// - Important: This pointer and the whole linked list - including all the `addrinfo`'s
         ///              internal pointers - are only valid as long as `self` is referenced.
-        private let _addrInfoPointer: UnsafeMutablePointer<addrinfo>
+		let _addrInfoPointer: UnsafeMutablePointer<addrinfo>
 
         /// Creates an instance with an existing `UnsafeMutablePointer<addrinfo>`, taking ownership of it.
         init(addrInfoPointer: UnsafeMutablePointer<addrinfo>) {
@@ -35,14 +35,14 @@ struct AddressInfoSequence {
     }
 
     /// The internal storage for the `addrinfo` linked list.
-    private let _addrInfoStorage: Storage
+	let _addrInfoStorage: Storage
 
     /// Creates an instance intended for a server socket for the given `port` that will be used with `bind()`.
     ///
     /// - parameter family: Default: `AF_UNSPEC`, i.e. IP4 or IP6.
     /// - parameter socketType: Default: `SOCK_STREAM`, i.e. a TCP socket.
     /// - parameter flags: Default: `AI_PASSIVE`, i.e. set the IP address of the resulting `sockaddr` to `INADDR_ANY` (IPv4) or `IN6ADDR_ANY_INIT` (IPv6).
-    init(forBindingToPort port: String, family: Int32 = AF_UNSPEC, socketType: Int32 = SOCK_STREAM, flags: Int32 = AI_PASSIVE) throws {
+    init (forBindingTo port: String, family: Int32 = AF_UNSPEC, socketType: Int32 = SOCK_STREAM, flags: Int32 = AI_PASSIVE) throws {
         try self.init(host: nil, port: port, family: family, socketType: socketType, flags: flags)
     }
 
@@ -51,7 +51,7 @@ struct AddressInfoSequence {
     /// - parameter family: Default: `AF_UNSPEC`, i.e. IP4 or IP6.
     /// - parameter socketType: Default: `SOCK_STREAM`, i.e. a TCP socket.
     /// - parameter flags: Default: `AI_DEFAULT` (= `AI_V4MAPPED_CFG | AI_ADDRCONFIG`).
-    init(forConnectingToHost host: String, port: String, family: Int32 = AF_UNSPEC, socketType: Int32 = SOCK_STREAM, flags: Int32 = AI_V4MAPPED_CFG | AI_ADDRCONFIG) throws {
+    init (forConnectingTo host: String?, port: String, family: Int32 = AF_UNSPEC, socketType: Int32 = SOCK_STREAM, flags: Int32 = AI_V4MAPPED_CFG | AI_ADDRCONFIG) throws {
         try self.init(host: host, port: port, family: family, socketType: socketType, flags: flags)
     }
 
@@ -60,7 +60,7 @@ struct AddressInfoSequence {
     /// - parameter family: For example `AF_UNSPEC`, i.e. IP4 or IP6.
     /// - parameter socketType: For example `SOCK_STREAM`, i.e. a TCP socket.
     /// - parameter flags: For example `AI_DEFAULT`.
-    private init(host: String?, port: String?, family: Int32, socketType: Int32, flags: Int32) throws {
+    private init (host: String?, port: String?, family: Int32, socketType: Int32, flags: Int32) throws {
         var hints = addrinfo();
         hints.ai_family = family
         hints.ai_socktype = socketType
@@ -83,85 +83,62 @@ struct AddressInfoSequence {
     /// - Important: `host` and `port` are both optional, but at least one of them must be given.
     ///
     /// - Note: See `getaddrinfo(3)` for more details about the parameters.
-    private init(host: String?, port: String?, hints: UnsafePointer<addrinfo>) throws {
-        var addrInfoPointer: UnsafeMutablePointer<addrinfo> = nil
-        let result: Int32
+    private init (host: String?, port: String?, hints: UnsafePointer<addrinfo>) throws {
+        var addrInfoPointer: UnsafeMutablePointer<addrinfo>? = nil
+        let result: Int32 = getaddrinfo(host, port, hints, &addrInfoPointer)
 
         // `String` bridges to `UnsafePointer<Int8>` automatically, but `String?` does not. This
         // switch takes care of the various combinations of `host` and `port` that can occur.
-        switch (host, port) {
-        case let (host?, port?):
-            result = getaddrinfo(host, port, hints, &addrInfoPointer)
+//		switch (host, port) {
+//        case let (host?, port?): result = getaddrinfo(host, port, hints, &addrInfoPointer)
+//        case let (nil, port?): result = getaddrinfo(nil, port, hints, &addrInfoPointer)
+//        case let (host?, nil): result = getaddrinfo(host, nil, hints, &addrInfoPointer)
+//        default: preconditionFailure("Either host or port must be given")
+//        }
 
-        case let (nil, port?):
-            result = getaddrinfo(nil, port, hints, &addrInfoPointer)
-
-        case let (host?, nil):
-            result = getaddrinfo(host, nil, hints, &addrInfoPointer)
-
-        default:
-            preconditionFailure("Either host or port must be given")
-        }
-
-        guard result != -1 else {
-            throw Socket.Error.GetAddrInfoFailed(code: result)
-        }
-        guard addrInfoPointer != nil else {
-            throw Socket.Error.NoAddressAvailable
-        }
-
-        _addrInfoStorage = Storage(addrInfoPointer: addrInfoPointer)
+        guard result != -1 else { throw Socket.POSIXError.GetAddrInfoFailed(code: result) }
+        guard let pointer = addrInfoPointer else { throw Socket.POSIXError.NoAddressAvailable }
+        _addrInfoStorage = Storage(addrInfoPointer: pointer)
     }
 
 }
 
 
-extension AddressInfoSequence: SequenceType {
-
-    func generate() -> AddressInfoGenerator {
+extension AddressInfoSequence: Sequence {
+    func makeIterator () -> AddressInfoGenerator {
         return AddressInfoGenerator(storage: _addrInfoStorage)
     }
-
 }
 
-struct AddressInfoGenerator: GeneratorType {
-
+struct AddressInfoGenerator: IteratorProtocol {
     private let _storage: AddressInfoSequence.Storage
     private var _cursor: UnsafeMutablePointer<addrinfo>
 
-    private init(storage: AddressInfoSequence.Storage) {
+	init (storage: AddressInfoSequence.Storage) {
         _storage = storage
         _cursor = storage._addrInfoPointer
     }
 
-    mutating func next() -> addrinfo? {
-        guard _cursor != nil else {
-            return nil
-        }
-        var addrInfo = _cursor.memory
+    mutating func next () -> addrinfo? {
+		var addrInfo = _cursor.pointee
         _cursor = addrInfo.ai_next
         addrInfo.ai_next = nil // Prevent access to the next element of the linked list.
         return addrInfo
     }
-
 }
 
 extension AddressInfoSequence {
-
     /// Calls `f` with a copy of the first `addrinfo` in the sequence.
-    func withFirstAddrInfo<R>(@noescape f: (addrinfo) throws -> R) rethrows -> R {
-        return try f(_addrInfoStorage._addrInfoPointer.memory)
+    func withFirstAddrInfo<R>(_ f: (addrinfo) throws -> R) rethrows -> R {
+		return try f(_addrInfoStorage._addrInfoPointer.pointee)
     }
-
 }
 
 
 #if false // Doesn't work yet.
 extension AddressInfoSequence: CustomStringConvertible {
-
     var description: String {
         return "[" + map { SocketAddress(addrInfo: $0).displayName }.reduce("") { $0 + ", " + $1 } + "]"
     }
-
 }
 #endif

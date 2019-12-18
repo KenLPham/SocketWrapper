@@ -10,9 +10,7 @@ import Darwin
 import Foundation
 
 /// A server socket that can `bind()` to a port, and `listen()` and `accept()` connections from clients.
-protocol ServerSocketType: AddressSocketType, AcceptAsyncSocketType {
-
-}
+protocol ServerSocketType: AddressSocketType, AcceptAsyncSocketType {}
 
 
 // Convenience initializers.
@@ -28,8 +26,8 @@ extension ServerSocketType {
     ///   This may require a new initializer like `init(bindingToPort:)` that loops over the
     ///   `AddressInfoSequence` and calls `bind()` on each `addrinfo` until one works, then uses that
     ///   `addrinfo` to call `init(addrInfo:)`.
-    init(port: String) throws {
-        self = try AddressInfoSequence(forBindingToPort: port).withFirstAddrInfo { addrInfo in
+    init (port: String) throws {
+		self = try AddressInfoSequence(forBindingTo: port).withFirstAddrInfo { addrInfo in
             try Self.init(addrInfo: addrInfo)
         }
     }
@@ -44,7 +42,7 @@ extension ServerSocketType {
     ///
     /// - Parameter reuseAddress: Whether to set `SO_REUSEADDR`, which is very 
     /// likely desired. See `getsockopt(2)` for details. Defaults to `true`.
-    func bind(reuseAddress reuseAddress: Bool = true) throws {
+    func bind (reuseAddress: Bool = true) throws {
         self[option: SO_REUSEADDR] = reuseAddress ? 1 : 0
         try address.withSockAddrPointer { sockAddr, length in
             try socket.bind(address: sockAddr, length: length)
@@ -55,7 +53,7 @@ extension ServerSocketType {
     ///
     /// - Parameter backlog: The maximum number of client connections that 
     /// are allowed to queue up for an `accept()` call. Defaults to `10`.
-    func listen(backlog backlog: Int32 = 10) throws {
+    func listen (backlog: Int32 = 10) throws {
         try socket.listen(backlog: backlog)
     }
 
@@ -67,16 +65,16 @@ extension ServerSocketType {
     /// returned to the caller of `accept()`.
     ///
     /// - Returns: The server-internal client representation created by `clientConnectedHandler`.
-    func accept<T: ConnectedClientSocketType>(blocking blocking: Bool = false, @noescape clientConnectedHandler: (socket: Socket, address: SocketAddress) throws -> T) throws -> T {
+	func accept<T: ConnectedClientSocketType> (blocking: Bool = false, clientConnectedHandler: (_ socket: Socket, _ address: SocketAddress) throws -> T) throws -> T {
         let (clientSocket, address) = try socket.accept(blocking: blocking)
-        return try clientConnectedHandler(socket: clientSocket, address: address)
+		return try clientConnectedHandler(clientSocket, address)
     }
 
     /// Accepts a client connection and returns an instance of a default client representation.
     ///
     /// - SeeAlso: `accept(blocking:, clientConnectedHandler:)`
-    func accept(blocking blocking: Bool = false) throws -> ConnectedClientSocketType {
-        return try accept(blocking: blocking) { socket, address in
+    func accept (blocking: Bool = false) throws -> ConnectedClientSocketType {
+        return try accept(blocking: blocking) { (socket, address) in
             return ConnectedClientSocket(socket: socket, address: address)
         }
     }
@@ -98,10 +96,9 @@ extension AcceptAsyncSocketType {
     /// This also happens automatically in the `SocketDispatchSource.deinit`.
     ///
     /// - Returns: A `SocketDispatchSource` that must be held on to by the caller for as long as callbacks are to be received.
-    func acceptAsync(queue queue: dispatch_queue_t = dispatch_get_global_queue(0, 0), readyToAcceptHandler: () -> Void) -> SocketDispatchSource {
-        return SocketDispatchSource(socket: socket, queue: queue, eventHandler: readyToAcceptHandler)
-    }
-
+	func acceptAsync (queue: DispatchQueue = .global(), readyToAccept handler: @escaping () -> Void) -> SocketDispatchSource {
+		return SocketDispatchSource(socket: socket, queue: queue, eventHandler: handler)
+	}
 }
 
 /// A minimal implementation of the `ServerSocketType`.

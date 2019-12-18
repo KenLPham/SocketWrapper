@@ -7,14 +7,10 @@
 //
 
 /// A client socket that was `accept()`ed by a `ServerSocketType`.
-protocol ConnectedClientSocketType: AddressSocketType, SendReceiveSocketType {
-
-}
+protocol ConnectedClientSocketType: AddressSocketType, SendReceiveSocketType {}
 
 /// A minimal implementation of the `ConnectedClientSocketType`.
 struct ConnectedClientSocket: ConnectedClientSocketType {
-
     let socket: Socket
     let address: SocketAddress
-    
 }

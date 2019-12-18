@@ -15,7 +15,7 @@ import Foundation
 class SocketDispatchSource {
 
     /// The managed dispatch source.
-    private var _dispatchSource: dispatch_source_t?
+    private var dispatchSource: DispatchSourceRead?
 
     /// Creates an instance for the given `Socket`.
     ///
@@ -27,24 +27,21 @@ class SocketDispatchSource {
     /// - Parameter eventHandler: The closure to call whenever the dispatch source fires, that is:
     ///   - For a socket that can `receive()`, whenever the peer sent data and the socket is ready to be `received()` from.
     ///   - For a server socket, whenever a client has connected and its connection is ready to be `accept()`ed.
-    init(socket: Socket, queue: dispatch_queue_t, eventHandler: () -> Void) {
-        let dispatchSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, UInt(socket.fileDescriptor), 0, queue)
-        self._dispatchSource = dispatchSource
-        dispatch_source_set_event_handler(dispatchSource, eventHandler)
-        dispatch_resume(dispatchSource)
-    }
-
-    deinit {
-        cancel()
+    init (socket: Socket, queue: DispatchQueue, eventHandler: @escaping () -> Void) {
+		self.dispatchSource = DispatchSource.makeReadSource(fileDescriptor: socket.fileDescriptor, queue: queue)
+		dispatchSource?.setEventHandler(handler: eventHandler)
+		dispatchSource?.resume()
     }
 
     /// Cancels the dispatch source, therefore stopping calling the `eventHandler`.
     /// Called automatically in `deinit`.
     func cancel() {
-        if let dispatchSource = _dispatchSource {
-            dispatch_source_cancel(dispatchSource)
-            _dispatchSource = nil
-        }
+		guard let source = self.dispatchSource else { return }
+		source.cancel()
+		self.dispatchSource = nil
     }
-
+	
+	deinit {
+        cancel()
+    }
 }

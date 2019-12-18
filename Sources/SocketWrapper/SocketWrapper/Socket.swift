@@ -28,7 +28,7 @@ struct Socket {
     init(addrInfo: addrinfo) throws {
         let fileDescriptor = Darwin.socket(addrInfo.ai_family, addrInfo.ai_socktype, addrInfo.ai_protocol)
         guard fileDescriptor != -1 else {
-            throw Error.CreateFailed(code: errno)
+            throw POSIXError.CreateFailed(code: errno)
         }
         self.init(fileDescriptor: fileDescriptor)
     }
@@ -41,7 +41,7 @@ extension Socket {
 
     /// Most of these errors are thrown whenever a low level socket function returns `-1`.
     /// Their associated error code then provides detailed information on the error.
-    enum Error: ErrorType, CustomStringConvertible {
+    enum POSIXError: Error, CustomStringConvertible {
         case BindFailed(code: errno_t)
         case CloseFailed(code: errno_t)
         case ConnectFailed(code: errno_t)
@@ -59,57 +59,32 @@ extension Socket {
         case AcceptFailed(code: errno_t)
 
         var description: String {
-            func errorString(code: errno_t) -> String {
-                return String(UTF8String: strerror(code))!
+            func errorString(_ code: errno_t) -> String {
+				return String(cString: strerror(code))
             }
 
             switch self {
-            case .AcceptFailed(let code):
-                return "accept() failed: " + errorString(code)
-
-            case .BindFailed(let code):
-                return "bind() failed: " + errorString(code)
-
-            case .CloseFailed(let code):
-                return "close() failed: " + errorString(code)
-
-            case .ConnectionClosed:
-                return "Connection closed."
-
-            case .ConnectFailed(let code):
-                return "connect() failed: " + errorString(code)
-
-            case .CreateFailed(let code):
-                return "socket() failed: " + errorString(code)
-
-            case .GetAddrInfoFailed(let code):
-                return "getaddrinfo() failed: " + String(UTF8String: gai_strerror(code))!
-
-            case .GetNameInfoFailed(let code):
-                return "getnameinfo() failed: " + errorString(code)
-
-            case .GetNameInfoInvalidName:
-                return "getnameinfo() returned invalid name."
-
-            case .ListenFailed(let code):
-                return "listen() failed: " + errorString(code)
-
-            case .NoAddressAvailable:
-                return "getaddrinfo() returned no address."
-
-            case .NoDataAvailable:
-                return "No data available"
-
-            case .SendFailed(let code):
-                return "send() failed: " + errorString(code)
-
-            case .ReceivedInvalidData:
-                return "Received invalid data"
-                
-            case .ReceiveFailed(let code):
-                return "recv() failed: " + errorString(code)
+            case .AcceptFailed(let code): return "accept() failed: " + errorString(code)
+            case .BindFailed(let code): return "bind() failed: " + errorString(code)
+            case .CloseFailed(let code): return "close() failed: " + errorString(code)
+            case .ConnectionClosed: return "Connection closed."
+            case .ConnectFailed(let code): return "connect() failed: " + errorString(code)
+            case .CreateFailed(let code): return "socket() failed: " + errorString(code)
+            case .GetAddrInfoFailed(let code): return "getaddrinfo() failed: " + String(cString: gai_strerror(code))
+            case .GetNameInfoFailed(let code): return "getnameinfo() failed: " + errorString(code)
+            case .GetNameInfoInvalidName: return "getnameinfo() returned invalid name."
+            case .ListenFailed(let code): return "listen() failed: " + errorString(code)
+            case .NoAddressAvailable: return "getaddrinfo() returned no address."
+            case .NoDataAvailable: return "No data available"
+            case .SendFailed(let code): return "send() failed: " + errorString(code)
+            case .ReceivedInvalidData: return "Received invalid data"
+            case .ReceiveFailed(let code): return "recv() failed: " + errorString(code)
             }
         }
+		
+		var localizedDescription: String {
+			return description
+		}
     }
 
 }
@@ -121,10 +96,10 @@ extension Socket {
     /// Sends the data in the given `buffer`.
     ///
     /// - SeeAlso: `send(2)`
-    func send(buffer: UnsafeBufferPointer<Byte>, flags: Int32 = 0) throws -> Int {
+    func send(_ buffer: UnsafeBufferPointer<Byte>, flags: Int32 = 0) throws -> Int {
         let result = Darwin.send(fileDescriptor, buffer.baseAddress, buffer.count, flags)
         guard result != -1 else {
-            throw Error.SendFailed(code: errno)
+            throw POSIXError.SendFailed(code: errno)
         }
         return result
     }
@@ -149,21 +124,16 @@ extension Socket {
     ///   - `blocking` is `false`: throws `Socket.Error.NoDataAvailable`.
     ///
     /// - SeeAlso: `recv(2)`
-    func receive(buffer: UnsafeMutableBufferPointer<Byte>, flags: Int32 = 0, blocking: Bool = false) throws -> Int {
+    func receive(_ buffer: UnsafeMutableBufferPointer<Byte>, flags: Int32 = 0, blocking: Bool = false) throws -> Int {
         self[fileOption: O_NONBLOCK] = !blocking
         let bytesReceived = Darwin.recv(fileDescriptor, buffer.baseAddress, buffer.count, flags)
         guard bytesReceived != -1 else {
             switch errno {
-            case EAGAIN:
-                throw Error.NoDataAvailable
-
-            case let error:
-                throw Error.ReceiveFailed(code: error)
+            case EAGAIN: throw POSIXError.NoDataAvailable
+            case let error: throw POSIXError.ReceiveFailed(code: error)
             }
         }
-        guard bytesReceived != 0 else {
-            throw Error.ConnectionClosed
-        }
+        guard bytesReceived != 0 else { throw POSIXError.ConnectionClosed }
         return bytesReceived
     }
 
@@ -183,7 +153,7 @@ extension Socket {
     /// - SeeAlso: `close(2)`
     func close() throws {
         guard Darwin.close(fileDescriptor) != -1 else {
-            throw Error.CloseFailed(code: errno)
+            throw POSIXError.CloseFailed(code: errno)
         }
     }
     
@@ -192,22 +162,21 @@ extension Socket {
 
 /// Server socket methods.
 extension Socket {
-
     /// Binds the given address to the server socket.
     ///
     /// - SeeAlso: `bind(2)`
-    func bind(address address: UnsafePointer<sockaddr>, length: socklen_t) throws {
+    func bind (address: UnsafePointer<sockaddr>, length: socklen_t) throws {
         guard Darwin.bind(fileDescriptor, address, length) != -1 else {
-            throw Error.BindFailed(code: errno)
+            throw POSIXError.BindFailed(code: errno)
         }
     }
 
     /// Starts listening for client connections on the server socket with type `SOCK_STREAM` (i.e. TCP).
     ///
     /// - SeeAlso: `listen(2)`
-    func listen(backlog backlog: Int32) throws {
+    func listen (backlog: Int32) throws {
         guard Darwin.listen(fileDescriptor, backlog) != -1 else {
-            throw Error.ListenFailed(code: errno)
+            throw POSIXError.ListenFailed(code: errno)
         }
     }
 
@@ -216,23 +185,20 @@ extension Socket {
     ///  - `blocking` is `false`: throws `Socket.Error.NoDataAvailable`.
     ///
     /// - SeeAlso: `accept(2)`
-    func accept(blocking blocking: Bool = false) throws -> (Socket, SocketAddress) {
+    func accept (blocking: Bool = false) throws -> (Socket, SocketAddress) {
         self[fileOption: O_NONBLOCK] = !blocking
 
         var clientFileDescriptor: Int32 = 0
-        let socketAddress = try SocketAddress() { sockaddr, length in
-            clientFileDescriptor = Darwin.accept(fileDescriptor, sockaddr, length)
+		let address = try SocketAddress(addressProvider: { (addr, length) in
+			clientFileDescriptor = Darwin.accept(fileDescriptor, addr, length)
             guard clientFileDescriptor != -1 else {
                 switch errno {
-                case EAGAIN:
-                    throw Error.NoDataAvailable
-
-                case let error:
-                    throw Error.AcceptFailed(code: error)
+                case EAGAIN: throw POSIXError.NoDataAvailable
+                case let error: throw POSIXError.AcceptFailed(code: error)
                 }
             }
-        }
-        return (Socket(fileDescriptor: clientFileDescriptor), socketAddress)
+		})
+        return (Socket(fileDescriptor: clientFileDescriptor), address)
     }
 
 }
@@ -244,9 +210,9 @@ extension Socket {
     /// Connects the socket to a peer.
     ///
     /// - SeeAlso: `connect(2)`
-    func connect(address address: UnsafePointer<sockaddr>, length: socklen_t) throws {
+    func connect(address: UnsafePointer<sockaddr>, length: socklen_t) throws {
         guard Darwin.connect(fileDescriptor, address, length) != -1 else {
-            throw Error.ConnectFailed(code: errno)
+            throw POSIXError.ConnectFailed(code: errno)
         }
     }
 
@@ -264,7 +230,7 @@ extension Socket {
 
         get {
             var value: Int32 = 0
-            var valueLength = socklen_t(sizeofValue(value))
+			var valueLength = socklen_t(MemoryLayout.size(ofValue: value))
 
             guard getsockopt(fileDescriptor, SOL_SOCKET, option, &value, &valueLength) != -1 else {
                 let errorNumber = errno
@@ -278,7 +244,7 @@ extension Socket {
         nonmutating set {
             var value = newValue
 
-            guard setsockopt(fileDescriptor, SOL_SOCKET, option, &value, socklen_t(sizeofValue(value))) != -1 else {
+            guard setsockopt(fileDescriptor, SOL_SOCKET, option, &value, socklen_t(MemoryLayout.size(ofValue: value))) != -1 else {
                 let errorNumber = errno
                 print("setsockopt() failed for option \(option), value \(value). \(errorNumber) \(strerror(errorNumber))")
                 return
