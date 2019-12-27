@@ -28,11 +28,9 @@ class ConnectedChatClient: ConnectedClientSocketType {
 }
 
 extension ConnectedChatClient: Equatable {
-
-}
-
-func ==(lhs: ConnectedChatClient, rhs: ConnectedChatClient) -> Bool {
-    return lhs.socket.fileDescriptor == rhs.socket.fileDescriptor
+	static func == (lhs: ConnectedChatClient, rhs: ConnectedChatClient) -> Bool {
+		return lhs.socket.fileDescriptor == rhs.socket.fileDescriptor
+	}
 }
 
 extension ConnectedChatClient: CustomStringConvertible {

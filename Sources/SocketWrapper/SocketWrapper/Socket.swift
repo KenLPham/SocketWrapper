@@ -20,18 +20,20 @@ struct Socket {
     let fileDescriptor: Int32
 
     /// Initializer for when a file descriptor exists already.
-    init(fileDescriptor: Int32) {
+    init (fileDescriptor: Int32) {
         self.fileDescriptor = fileDescriptor
     }
 
     /// Initializer for creating a new file descriptor using `Darwin.socket()` using the `addrinfo`.
-    init(addrInfo: addrinfo) throws {
-        let fileDescriptor = Darwin.socket(addrInfo.ai_family, addrInfo.ai_socktype, addrInfo.ai_protocol)
-        guard fileDescriptor != -1 else {
-            throw POSIXError.CreateFailed(code: errno)
-        }
-        self.init(fileDescriptor: fileDescriptor)
+    init (addrInfo: addrinfo) throws {
+		try self.init(family: addrInfo.ai_family, socket: addrInfo.ai_socktype, protocol: addrInfo.ai_protocol)
     }
+	
+	init (family: Int32, socket type: Int32, protocol proto: Int32) throws {
+		let descriptor = Darwin.socket(family, type, proto)
+        guard descriptor != -1 else { throw POSIXError.CreateFailed(code: errno) }
+        self.init(fileDescriptor: descriptor)
+	}
 
 }
 
@@ -93,19 +95,23 @@ extension Socket {
 /// Sending data.
 extension Socket {
 
+	func send (to sender: UnsafeMutablePointer<sockaddr>, buffer: UnsafeBufferPointer<Byte>, flags: Int32 = 0) throws -> Int {
+		let result = Darwin.sendto(fileDescriptor, buffer.baseAddress, buffer.count, flags, sender, socklen_t(MemoryLayout.size(ofValue: sender)))
+		guard result != -1 else { throw POSIXError.SendFailed(code: errno) }
+		return result
+	}
+	
     /// Sends the data in the given `buffer`.
     ///
     /// - SeeAlso: `send(2)`
-    func send(_ buffer: UnsafeBufferPointer<Byte>, flags: Int32 = 0) throws -> Int {
+    func send (_ buffer: UnsafeBufferPointer<Byte>, flags: Int32 = 0) throws -> Int {
         let result = Darwin.send(fileDescriptor, buffer.baseAddress, buffer.count, flags)
-        guard result != -1 else {
-            throw POSIXError.SendFailed(code: errno)
-        }
+        guard result != -1 else { throw POSIXError.SendFailed(code: errno) }
         return result
     }
 
     /// Sends the chunk of data defined by `pointer` and `count`.
-    func send(pointer: UnsafePointer<Byte>, count: Int, flags: Int32 = 0) throws -> Int {
+    func send (pointer: UnsafePointer<Byte>, count: Int, flags: Int32 = 0) throws -> Int {
         return try send(UnsafeBufferPointer(start: pointer, count: count), flags: flags)
     }
 
@@ -114,7 +120,18 @@ extension Socket {
 
 // Receiving data.
 extension Socket {
-
+	func receive (from sender: UnsafeMutablePointer<sockaddr>, length senderLen: UnsafeMutablePointer<socklen_t>, buffer: UnsafeMutableBufferPointer<Byte>, flags: Int32 = 0) throws -> Int {
+		let bytesReceived = Darwin.recvfrom(fileDescriptor, buffer.baseAddress, buffer.count, flags, sender, senderLen)
+		guard bytesReceived != -1 else {
+			switch errno {
+            case EAGAIN: throw POSIXError.NoDataAvailable
+            case let error: throw POSIXError.ReceiveFailed(code: error)
+            }
+		}
+		guard bytesReceived != 0 else { throw POSIXError.ConnectionClosed }
+        return bytesReceived
+	}
+	
     /// Receives data into `buffer`.
     ///
     /// - Parameter buffer: A previously allocated buffer that this method writes into.
@@ -124,7 +141,7 @@ extension Socket {
     ///   - `blocking` is `false`: throws `Socket.Error.NoDataAvailable`.
     ///
     /// - SeeAlso: `recv(2)`
-    func receive(_ buffer: UnsafeMutableBufferPointer<Byte>, flags: Int32 = 0, blocking: Bool = false) throws -> Int {
+    func receive (_ buffer: UnsafeMutableBufferPointer<Byte>, flags: Int32 = 0, blocking: Bool = false) throws -> Int {
         self[fileOption: O_NONBLOCK] = !blocking
         let bytesReceived = Darwin.recv(fileDescriptor, buffer.baseAddress, buffer.count, flags)
         guard bytesReceived != -1 else {
@@ -138,7 +155,7 @@ extension Socket {
     }
 
     /// Receives a chunk of data to `pointer` with a maximum of `count`.
-    func receive(pointer: UnsafeMutablePointer<Byte>, count: Int, flags: Int32 = 0, blocking: Bool = false) throws -> Int {
+    func receive (pointer: UnsafeMutablePointer<Byte>, count: Int, flags: Int32 = 0, blocking: Bool = false) throws -> Int {
         return try receive(UnsafeMutableBufferPointer(start: pointer, count: count), flags: flags, blocking: blocking)
     }
 
@@ -147,16 +164,12 @@ extension Socket {
 
 /// Closing the socket.
 extension Socket {
-
     /// Closes the socket.
     ///
     /// - SeeAlso: `close(2)`
-    func close() throws {
-        guard Darwin.close(fileDescriptor) != -1 else {
-            throw POSIXError.CloseFailed(code: errno)
-        }
-    }
-    
+    func close () throws {
+        guard Darwin.close(fileDescriptor) != -1 else { throw POSIXError.CloseFailed(code: errno) }
+	}
 }
 
 
@@ -166,18 +179,14 @@ extension Socket {
     ///
     /// - SeeAlso: `bind(2)`
     func bind (address: UnsafePointer<sockaddr>, length: socklen_t) throws {
-        guard Darwin.bind(fileDescriptor, address, length) != -1 else {
-            throw POSIXError.BindFailed(code: errno)
-        }
+        guard Darwin.bind(fileDescriptor, address, length) != -1 else { throw POSIXError.BindFailed(code: errno) }
     }
 
     /// Starts listening for client connections on the server socket with type `SOCK_STREAM` (i.e. TCP).
     ///
     /// - SeeAlso: `listen(2)`
     func listen (backlog: Int32) throws {
-        guard Darwin.listen(fileDescriptor, backlog) != -1 else {
-            throw POSIXError.ListenFailed(code: errno)
-        }
+        guard Darwin.listen(fileDescriptor, backlog) != -1 else { throw POSIXError.ListenFailed(code: errno) }
     }
 
     /// Accept a connection on the server socket and return. If no new client has connected and...
@@ -210,34 +219,64 @@ extension Socket {
     /// Connects the socket to a peer.
     ///
     /// - SeeAlso: `connect(2)`
-    func connect(address: UnsafePointer<sockaddr>, length: socklen_t) throws {
-        guard Darwin.connect(fileDescriptor, address, length) != -1 else {
-            throw POSIXError.ConnectFailed(code: errno)
-        }
+    func connect (address: UnsafePointer<sockaddr>, length: socklen_t) throws {
+        guard Darwin.connect(fileDescriptor, address, length) != -1 else { throw POSIXError.ConnectFailed(code: errno) }
     }
 
+	/// Create direct link with a peer.
+	///
+	/// - SeeAlso: link_addr(3)
+//	func link (host: String) {
+//		let dl = sockaddr_dl()
+//		Darwin.link_addr(Array<CChar>(host), dl)
+//	}
+	
+}
+
+/// Point to Point Protocol (PPP)
+extension Socket {
+	/// Get interface addresses
+	///
+	/// - SeeAlso: getifaddrs(3)
+	func getifaddrs (addresses: UnsafeMutablePointer<UnsafeMutablePointer<ifaddrs>?>) throws {
+		guard Darwin.getifaddrs(addresses) != -1 else { throw POSIXError.GetAddrInfoFailed(code: errno) } /// - TODO: create GetIfAddrsFailed
+	}
 }
 
 /// Subscripts.
 extension Socket {
 
+	func add (membership request: UnsafePointer<ip_mreq>) {
+		guard setsockopt(fileDescriptor, IPPROTO_IP, IP_ADD_MEMBERSHIP, request, socklen_t(MemoryLayout.size(ofValue: request))) != -1 else {
+			let errorNumber = errno
+			print("setsockopt() failed for option IP_ADD_MEMBERSHIP, value \(request.pointee). \(errorNumber) " + String(cString: strerror(errorNumber)))
+			return
+		}
+	}
+	
+	func drop (membership request: UnsafePointer<ip_mreq>) {
+		guard setsockopt(fileDescriptor, IPPROTO_IP, IP_DROP_MEMBERSHIP, request, socklen_t(MemoryLayout.size(ofValue: request))) != -1 else {
+			let errorNumber = errno
+			print("setsockopt() failed for option IP_DROP_MEMBERSHIP, value \(request.pointee). \(errorNumber) " + String(cString: strerror(errorNumber)))
+			return
+		}
+	}
+	
     /// A wrapper around `getsockopt()` and `setsockopt` with a level of `SOL_SOCKET`.
     ///
     /// - SeeAlso: `getsockopt(2)`
     ///
     /// - This should probably be a method that can throw.
-    subscript(socketOption option: Int32) -> Int32 {
-
+    subscript(socket option: Int32) -> Int32 {
         get {
             var value: Int32 = 0
 			var valueLength = socklen_t(MemoryLayout.size(ofValue: value))
 
             guard getsockopt(fileDescriptor, SOL_SOCKET, option, &value, &valueLength) != -1 else {
                 let errorNumber = errno
-                print("getsockopt() failed for option \(option). \(errorNumber) \(strerror(errorNumber))")
+                print("getsockopt(socket:) failed for option \(option). \(errorNumber) \(strerror(errorNumber))")
                 return 0
             }
-
             return value
         }
 
@@ -246,12 +285,35 @@ extension Socket {
 
             guard setsockopt(fileDescriptor, SOL_SOCKET, option, &value, socklen_t(MemoryLayout.size(ofValue: value))) != -1 else {
                 let errorNumber = errno
-                print("setsockopt() failed for option \(option), value \(value). \(errorNumber) \(strerror(errorNumber))")
+                print("setsockopt(socket:) failed for option \(option), value \(value). \(errorNumber) \(strerror(errorNumber))")
                 return
             }
         }
-        
     }
+	
+	subscript (ip option: Int32) -> Int32 {
+		get {
+			var value: Int32 = 0
+			var len = socklen_t(MemoryLayout.size(ofValue: value))
+			
+			guard getsockopt(fileDescriptor, IPPROTO_IP, option, &value, &len) != -1 else {
+				let errorNumber = errno
+                print("getsockopt(ip:) failed for option \(option). \(errorNumber) \(strerror(errorNumber))")
+                return 0
+			}
+			return value
+		}
+		
+		nonmutating set {
+			var value = newValue
+			
+			guard setsockopt(fileDescriptor, IPPROTO_IP, option, &value, socklen_t(MemoryLayout.size(ofValue: value))) != -1 else {
+				let errorNumber = errno
+                print("setsockopt(ip:) failed for option \(option), value \(value). \(errorNumber) \(strerror(errorNumber))")
+                return
+			}
+		}
+	}
 
     /// A wrapper around `fcntl()` for the  `F_GETFL` and `F_SETFL` commands.
     ///

@@ -42,8 +42,9 @@ struct AddressInfoSequence {
     /// - parameter family: Default: `AF_UNSPEC`, i.e. IP4 or IP6.
     /// - parameter socketType: Default: `SOCK_STREAM`, i.e. a TCP socket.
     /// - parameter flags: Default: `AI_PASSIVE`, i.e. set the IP address of the resulting `sockaddr` to `INADDR_ANY` (IPv4) or `IN6ADDR_ANY_INIT` (IPv6).
-    init (forBindingTo port: String, family: Int32 = AF_UNSPEC, socketType: Int32 = SOCK_STREAM, flags: Int32 = AI_PASSIVE) throws {
-        try self.init(host: nil, port: port, family: family, socketType: socketType, flags: flags)
+	/// - parameter protocol: Default: `IPPROTO_IP`,
+	init (forBindingTo port: String?, family: Int32 = AF_UNSPEC, socketType: Int32 = SOCK_STREAM, flags: Int32 = AI_PASSIVE, protocol proto: Int32 = IPPROTO_TCP) throws {
+		try self.init(host: nil, port: port, family: family, socketType: socketType, flags: flags, protocol: proto)
     }
 
     /// Creates an instance intended for a client socket for the given `host` and `port` that will be used with `connect()`.
@@ -51,8 +52,8 @@ struct AddressInfoSequence {
     /// - parameter family: Default: `AF_UNSPEC`, i.e. IP4 or IP6.
     /// - parameter socketType: Default: `SOCK_STREAM`, i.e. a TCP socket.
     /// - parameter flags: Default: `AI_DEFAULT` (= `AI_V4MAPPED_CFG | AI_ADDRCONFIG`).
-    init (forConnectingTo host: String?, port: String, family: Int32 = AF_UNSPEC, socketType: Int32 = SOCK_STREAM, flags: Int32 = AI_V4MAPPED_CFG | AI_ADDRCONFIG) throws {
-        try self.init(host: host, port: port, family: family, socketType: socketType, flags: flags)
+	init (forConnectingTo host: String?, port: String, family: Int32 = AF_UNSPEC, socketType: Int32 = SOCK_STREAM, flags: Int32 = AI_V4MAPPED_CFG | AI_ADDRCONFIG, protocol proto: Int32 = IPPROTO_TCP) throws {
+		try self.init(host: host, port: port, family: family, socketType: socketType, flags: flags, protocol: proto)
     }
 
     /// Creates an instance for the given `host` and/or `port`.
@@ -60,12 +61,13 @@ struct AddressInfoSequence {
     /// - parameter family: For example `AF_UNSPEC`, i.e. IP4 or IP6.
     /// - parameter socketType: For example `SOCK_STREAM`, i.e. a TCP socket.
     /// - parameter flags: For example `AI_DEFAULT`.
-    private init (host: String?, port: String?, family: Int32, socketType: Int32, flags: Int32) throws {
+	private init (host: String?, port: String?, family: Int32, socketType: Int32, flags: Int32, protocol proto: Int32) throws {
         var hints = addrinfo();
         hints.ai_family = family
         hints.ai_socktype = socketType
         hints.ai_flags = flags
-
+		hints.ai_protocol = proto
+		
         try self.init(host: host, port: port, hints: &hints)
     }
 
@@ -84,23 +86,13 @@ struct AddressInfoSequence {
     ///
     /// - Note: See `getaddrinfo(3)` for more details about the parameters.
     private init (host: String?, port: String?, hints: UnsafePointer<addrinfo>) throws {
-        var addrInfoPointer: UnsafeMutablePointer<addrinfo>? = nil
-        let result: Int32 = getaddrinfo(host, port, hints, &addrInfoPointer)
-
-        // `String` bridges to `UnsafePointer<Int8>` automatically, but `String?` does not. This
-        // switch takes care of the various combinations of `host` and `port` that can occur.
-//		switch (host, port) {
-//        case let (host?, port?): result = getaddrinfo(host, port, hints, &addrInfoPointer)
-//        case let (nil, port?): result = getaddrinfo(nil, port, hints, &addrInfoPointer)
-//        case let (host?, nil): result = getaddrinfo(host, nil, hints, &addrInfoPointer)
-//        default: preconditionFailure("Either host or port must be given")
-//        }
+        var info: UnsafeMutablePointer<addrinfo>? = nil
+        let result: Int32 = getaddrinfo(host, port, hints, &info)
 
         guard result != -1 else { throw Socket.POSIXError.GetAddrInfoFailed(code: result) }
-        guard let pointer = addrInfoPointer else { throw Socket.POSIXError.NoAddressAvailable }
+        guard let pointer = info else { throw Socket.POSIXError.NoAddressAvailable }
         _addrInfoStorage = Storage(addrInfoPointer: pointer)
     }
-
 }
 
 
@@ -120,10 +112,12 @@ struct AddressInfoGenerator: IteratorProtocol {
     }
 
     mutating func next () -> addrinfo? {
-		var addrInfo = _cursor.pointee
-        _cursor = addrInfo.ai_next
-        addrInfo.ai_next = nil // Prevent access to the next element of the linked list.
-        return addrInfo
+		var info = _cursor.pointee
+		
+		guard let next = info.ai_next else { return nil }
+        _cursor = next
+        info.ai_next = nil // Prevent access to the next element of the linked list.
+        return info
     }
 }
 

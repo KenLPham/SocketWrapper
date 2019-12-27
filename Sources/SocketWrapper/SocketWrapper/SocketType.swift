@@ -35,15 +35,32 @@ extension SocketType {
     func didClose() {
         // Empty default implementation
     }
+	
+	func add (membership request: UnsafePointer<ip_mreq>) {
+		socket.add(membership: request)
+	}
+	
+	func drop (membership request: UnsafePointer<ip_mreq>) {
+		socket.drop(membership: request)
+	}
 
-    /// Pass through to `Socket`'s `socketOption` subscript.
-    subscript(option option: Int32) -> Int32 {
+    /// Pass through to `Socket`'s `socket` subscript.
+	subscript (socket option: Int32) -> Int32 {
         get {
-            return socket[socketOption: option]
+            return socket[socket: option]
         }
         nonmutating set {
-            socket[socketOption: option] = newValue
+            socket[socket: option] = newValue
         }
     }
 
+	/// Pass through to `Socket`'s `ip` subscript.
+	subscript (ip option: Int32) -> Int32 {
+		get {
+            return socket[ip: option]
+        }
+        nonmutating set {
+            socket[ip: option] = newValue
+        }
+	}
 }

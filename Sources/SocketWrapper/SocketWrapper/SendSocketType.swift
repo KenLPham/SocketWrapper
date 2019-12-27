@@ -22,7 +22,7 @@ protocol SendSocketType: SocketType {
 extension SendSocketType {
 
     /// Sends the bytes in the given `buffer`. May call `Socket.send()` repeatedly until all bytes have been sent.
-    func send(buffer: UnsafeBufferPointer<Socket.Byte>) throws {
+    func send (buffer: UnsafeBufferPointer<Socket.Byte>) throws {
 		guard let base = buffer.baseAddress else { return }
         let bytesToSend = buffer.count
         var bytesSent = 0
@@ -34,11 +34,11 @@ extension SendSocketType {
         didSend(buffer)
     }
 
-    func willSend(_ bytes: UnsafeBufferPointer<Socket.Byte>) {
+    func willSend (_ bytes: UnsafeBufferPointer<Socket.Byte>) {
         // Empty default implementation
     }
 
-    func didSend(_ bytes: UnsafeBufferPointer<Socket.Byte>) {
+    func didSend (_ bytes: UnsafeBufferPointer<Socket.Byte>) {
         // Empty default implementation
     }
 
@@ -54,14 +54,14 @@ extension SendSocketType {
     }
 
     /// Convenience method to send an arbitrary `CollectionType` of `Socket.Byte`s.
-	func send<T: Collection>(bytes: T) throws where T.Iterator.Element == Socket.Byte {
+	func send<T: Collection> (bytes: T) throws where T.Iterator.Element == Socket.Byte {
 		try send(bytes: Array(bytes))
     }
 
     /// Convenience method to send a `String`.
     ///
     /// - Parameter includeNulTerminator: Whether to send a `NUL` terminator (defaults to `false`).
-    func send(message: String, includeNulTerminator: Bool = false) throws {
+    func send (message: String, includeNulTerminator: Bool = false) throws {
 		try message.withUTF8UnsafeBufferPointer(includeNulTerminator: includeNulTerminator) { try send(buffer: $0) }
     }
     

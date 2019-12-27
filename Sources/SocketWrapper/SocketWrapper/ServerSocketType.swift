@@ -43,7 +43,7 @@ extension ServerSocketType {
     /// - Parameter reuseAddress: Whether to set `SO_REUSEADDR`, which is very 
     /// likely desired. See `getsockopt(2)` for details. Defaults to `true`.
     func bind (reuseAddress: Bool = true) throws {
-        self[option: SO_REUSEADDR] = reuseAddress ? 1 : 0
+		self[socket: SO_REUSEADDR] = reuseAddress ? 1 : 0
         try address.withSockAddrPointer { sockAddr, length in
             try socket.bind(address: sockAddr, length: length)
         }
@@ -78,7 +78,6 @@ extension ServerSocketType {
             return ConnectedClientSocket(socket: socket, address: address)
         }
     }
-
 }
 
 
@@ -103,8 +102,6 @@ extension AcceptAsyncSocketType {
 
 /// A minimal implementation of the `ServerSocketType`.
 struct ServerSocket: ServerSocketType {
-    
     let socket: Socket
     let address: SocketAddress
-    
 }
