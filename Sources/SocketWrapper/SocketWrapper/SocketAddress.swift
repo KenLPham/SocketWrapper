@@ -70,7 +70,7 @@ enum SocketAddress {
     /// Creates an instance by inspecting the given `addrinfo`'s protocol family and socket address.
     ///
     /// - Important: The given `addrinfo` must contain either an IPv4 or IPv6 address.
-    init(addrInfo: addrinfo) {
+    init (addrInfo: addrinfo) {
         switch addrInfo.ai_family {
         case AF_INET:
             assert(addrInfo.ai_addrlen == SocketAddress.lengthOfVersion4)
@@ -79,23 +79,22 @@ enum SocketAddress {
             assert(addrInfo.ai_addrlen == SocketAddress.lengthOfVersion6)
 			self = .Version6(address: addrInfo.ai_addr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1, { $0.pointee }))
         default:
-            fatalError("Unknown address size")
+			fatalError("Unknown address size")
         }
     }
 
     /// Creates an instance for a given IPv4 socket address.
-    init(address: sockaddr_in) {
+    init (address: sockaddr_in) {
         self = .Version4(address: address)
     }
 
     /// Creates an instance for a given IPv6 socket address.
-    init(address: sockaddr_in6) {
+    init (address: sockaddr_in6) {
         self = .Version6(address: address)
     }
 
     /// Makes a copy of `address` and calls the given closure with an `UnsafePointer<sockaddr>` to that.
-    func withSockAddrPointer<Result>(body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
-
+    func withSockAddrPointer<Result> (body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
         func castAndCall<T>(_ address: T, _ body: (UnsafePointer<sockaddr>, socklen_t) throws -> Result) rethrows -> Result {
 			return try withUnsafePointer(to: address) { (pointer) -> Result in
 				try pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
@@ -107,14 +106,13 @@ enum SocketAddress {
         switch self {
         case .Version4 (let address):
             return try castAndCall(address, body)
-
         case .Version6 (let address):
             return try castAndCall(address, body)
         }
     }
 
     /// Returns the host and port as returned by `getnameinfo()`.
-    func nameInfo() throws -> (host: String, port: String) {
+    func nameInfo () throws -> (host: String, port: String) {
         var hostBuffer = [CChar](repeating: 0, count: 256)
         var portBuffer = [CChar](repeating: 0, count: 256)
 
@@ -138,11 +136,8 @@ enum SocketAddress {
         }
 
         switch self {
-        case .Version4(var address):
-            return createDisplayName(address: &address, family: AF_INET, maxLength: INET_ADDRSTRLEN)
-
-        case .Version6(var address):
-            return createDisplayName(address: &address, family: AF_INET6, maxLength: INET6_ADDRSTRLEN)
+        case .Version4 (var address): return createDisplayName(address: &address, family: AF_INET, maxLength: INET_ADDRSTRLEN)
+        case .Version6 (var address): return createDisplayName(address: &address, family: AF_INET6, maxLength: INET6_ADDRSTRLEN)
         }
     }
     #endif

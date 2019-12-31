@@ -6,6 +6,8 @@
 //  Copyright © 2016 Objective Development. All rights reserved.
 //
 
+import Darwin
+
 /// Represents a client socket that can `connect()` to a peer identified by a `host` and `port`.
 protocol ClientSocketType: AddressSocketType, SendReceiveSocketType {}
 
@@ -24,9 +26,39 @@ extension ClientSocketType {
     ///   `addrinfo` to call `init(addrInfo:)`.
     init (host: String?, port: String) throws {
         self = try AddressInfoSequence(forConnectingTo: host, port: port).withFirstAddrInfo { addrInfo in
-            try Self.init(addrInfo: addrInfo)
+			try Self.init(addrInfo: addrInfo)
         }
     }
+	
+	/// - TODO: fix always throws error or remove
+    #if false
+	init (connectTo host: String?, port: String) throws {
+		let sequence = try AddressInfoSequence(forConnectingTo: host, port: port)
+		var iterator = sequence.makeIterator()
+		
+		var nextItem: addrinfo? = sequence._addrInfoStorage._addrInfoPointer.pointee
+		while let item = nextItem {
+			nextItem = nil
+			
+			item.ai_addr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { ptr in
+				var addr = ptr.pointee
+				var str = [CChar](repeating: 0, count: Int(addr.sin6_len))
+				inet_ntop(AF_INET6, &(addr.sin6_addr), &str, socklen_t(addr.sin6_len))
+				print("IPv6 " + String(cString: str), addr.sin6_port)
+			}
+			
+			do {
+				let socType = try Self.init(addrInfo: item)
+				try socType.connect()
+				self = socType
+			} catch {
+				nextItem = iterator.next()
+			}
+		}
+		
+		throw Socket.POSIXError.ConnectFailed(code: 1)
+	}
+    #endif
 
     /// Connects to `address`.
     func connect () throws {

@@ -46,16 +46,7 @@ extension String {
 
     /// Calls the given closure with a `UnsafeBufferPointer<UTF8.CodeUnit>` to an optionally `NUL`-terminated UTF-8 representation of the `String`.
 	func withUTF8UnsafeBufferPointer<Result> (includeNulTerminator: Bool = true, f: (UnsafeBufferPointer<UTF8.CodeUnit>) throws -> Result) rethrows -> Result {
-//		return try utf8CString.withUnsafeBufferPointer { codeUnitBuffer in
-//			let cCharBufferCount = includeNulTerminator ? codeUnitBuffer.count : codeUnitBuffer.count - 1
-//			let cCharBuffer = UnsafeBufferPointer<UTF8.CodeUnit>(start: UnsafePointer(codeUnitBuffer.baseAddress), count: cCharBufferCount)
-//			return try f(cCharBuffer)
-//		}
-		
-		return try utf8CString.withUnsafeBufferPointer { unitBuffer in
-//			let count = includeNulTerminator ? unitBuffer.count : unitBuffer.count - 1
-			return try unitBuffer.withMemoryRebound(to: UTF8.CodeUnit.self) { try f($0) }
-		}
+		return try utf8CString.withUnsafeBufferPointer { try $0.withMemoryRebound(to: UTF8.CodeUnit.self) { try f($0) } }
     }
 }
 
@@ -63,7 +54,7 @@ extension String {
 /// A common protocol of all array-like types that implement a `withUnsafeBufferPointer()` method.
 protocol WithUnsafeBufferPointerType {
     associatedtype Element
-    func withUnsafeBufferPointer<R>(_ body: (UnsafeBufferPointer<Element>) throws -> R) rethrows -> R
+    func withUnsafeBufferPointer<R> (_ body: (UnsafeBufferPointer<Element>) throws -> R) rethrows -> R
 }
 
 extension Array: WithUnsafeBufferPointerType {}
